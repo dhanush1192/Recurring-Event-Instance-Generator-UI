@@ -1,0 +1,356 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, Plus, Trash2, Settings, Users } from 'lucide-react';
+
+const RecurringEventGenerator = () => {
+  const [eventData, setEventData] = useState({
+    title: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    startTime: '09:00',
+    endTime: '10:00',
+    daysOfWeek: [],
+    maxInstances: 50,
+    timezone: 'UTC'
+  });
+
+  const [generatedInstances, setGeneratedInstances] = useState([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const daysOfWeek = [
+    { id: 0, name: 'Sunday', short: 'Sun' },
+    { id: 1, name: 'Monday', short: 'Mon' },
+    { id: 2, name: 'Tuesday', short: 'Tue' },
+    { id: 3, name: 'Wednesday', short: 'Wed' },
+    { id: 4, name: 'Thursday', short: 'Thu' },
+    { id: 5, name: 'Friday', short: 'Fri' },
+    { id: 6, name: 'Saturday', short: 'Sat' }
+  ];
+
+  const generateInstances = () => {
+    if (!eventData.title || !eventData.startDate || !eventData.endDate || eventData.daysOfWeek.length === 0) {
+      return;
+    }
+
+    const startDate = new Date(eventData.startDate);
+    const endDate = new Date(eventData.endDate);
+    const instances = [];
+
+    let currentDate = new Date(startDate);
+    let instanceCount = 0;
+
+    while (currentDate <= endDate && instanceCount < eventData.maxInstances) {
+      const dayOfWeek = currentDate.getDay();
+      
+      if (eventData.daysOfWeek.includes(dayOfWeek)) {
+        const instanceStart = new Date(currentDate);
+        const instanceEnd = new Date(currentDate);
+        
+        const [startHour, startMinute] = eventData.startTime.split(':');
+        const [endHour, endMinute] = eventData.endTime.split(':');
+        
+        instanceStart.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+        instanceEnd.setHours(parseInt(endHour), parseInt(endMinute), 0, 0);
+
+        instances.push({
+          id: `${eventData.title}-${instanceCount}`,
+          title: eventData.title,
+          description: eventData.description,
+          startDateTime: instanceStart,
+          endDateTime: instanceEnd,
+          date: currentDate.toDateString(),
+          startTime: eventData.startTime,
+          endTime: eventData.endTime
+        });
+        
+        instanceCount++;
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    setGeneratedInstances(instances);
+  };
+
+  const handleDayToggle = (dayId) => {
+    setEventData(prev => ({
+      ...prev,
+      daysOfWeek: prev.daysOfWeek.includes(dayId)
+        ? prev.daysOfWeek.filter(d => d !== dayId)
+        : [...prev.daysOfWeek, dayId].sort()
+    }));
+  };
+
+  const handleInputChange = (field, value) => {
+    setEventData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const clearInstances = () => {
+    setGeneratedInstances([]);
+  };
+
+  const exportInstances = () => {
+    const dataStr = JSON.stringify(generatedInstances, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${eventData.title || 'recurring-events'}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    if (eventData.title && eventData.startDate && eventData.endDate && eventData.daysOfWeek.length > 0) {
+      generateInstances();
+    }
+  }, [eventData]);
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-8 h-8" />
+            <div>
+              <h1 className="text-2xl font-bold">Recurring Event Generator</h1>
+              <p className="text-blue-100">Create weekly recurring event instances within a date range</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6 p-6">
+          {/* Configuration Panel */}
+          <div className="space-y-6">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Event Configuration
+              </h2>
+              
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
+                  <input
+                    type="text"
+                    value={eventData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter event title"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={eventData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Event description (optional)"
+                    rows="3"
+                  />
+                </div>
+
+                {/* Date Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={eventData.startDate}
+                      onChange={(e) => handleInputChange('startDate', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={eventData.endDate}
+                      onChange={(e) => handleInputChange('endDate', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Time Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      value={eventData.startTime}
+                      onChange={(e) => handleInputChange('startTime', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <input
+                      type="time"
+                      value={eventData.endTime}
+                      onChange={(e) => handleInputChange('endTime', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Days of Week Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+                  <div className="grid grid-cols-7 gap-2">
+                    {daysOfWeek.map((day) => (
+                      <button
+                        key={day.id}
+                        onClick={() => handleDayToggle(day.id)}
+                        className={`p-2 text-xs font-medium rounded-lg transition-all ${
+                          eventData.daysOfWeek.includes(day.id)
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {day.short}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Advanced Options */}
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors"
+                >
+                  {showAdvanced ? 'Hide' : 'Show'} Advanced Options
+                </button>
+
+                {showAdvanced && (
+                  <div className="space-y-4 border-t pt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Max Instances</label>
+                      <input
+                        type="number"
+                        value={eventData.maxInstances}
+                        onChange={(e) => handleInputChange('maxInstances', parseInt(e.target.value) || 50)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        min="1"
+                        max="365"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={generateInstances}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Generate Instances
+              </button>
+              {generatedInstances.length > 0 && (
+                <>
+                  <button
+                    onClick={exportInstances}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Export JSON
+                  </button>
+                  <button
+                    onClick={clearInstances}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Generated Instances Panel */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Generated Instances
+              </h2>
+              {generatedInstances.length > 0 && (
+                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+                  {generatedInstances.length} instances
+                </span>
+              )}
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {generatedInstances.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No instances generated yet</p>
+                  <p className="text-sm">Configure your event and generate instances</p>
+                </div>
+              ) : (
+                generatedInstances.map((instance, index) => (
+                  <div
+                    key={instance.id}
+                    className="bg-white rounded-lg p-3 border border-gray-200 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{instance.title}</h3>
+                        {instance.description && (
+                          <p className="text-sm text-gray-600 mt-1">{instance.description}</p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {instance.date}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {instance.startTime} - {instance.endTime}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        #{index + 1}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Stats */}
+        {generatedInstances.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-green-600">{generatedInstances.length}</div>
+                <div className="text-sm text-gray-600">Total Instances</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-600">{eventData.daysOfWeek.length}</div>
+                <div className="text-sm text-gray-600">Days per Week</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {eventData.startDate && eventData.endDate ? 
+                    Math.ceil((new Date(eventData.endDate) - new Date(eventData.startDate)) / (1000 * 60 * 60 * 24)) : 0}
+                </div>
+                <div className="text-sm text-gray-600">Date Range (days)</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default RecurringEventGenerator;
